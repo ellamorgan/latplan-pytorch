@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
 from PIL import Image
+import pickle
 
 
 def load_args():
@@ -33,20 +34,29 @@ def load_puzzle(n_data = 200, n_tiles = 4, image_name='spider', w = 120, **kwarg
     tiled_image = np.array([puzzle[i * t_w : (i + 1) * t_w, j * t_w : (j + 1) * t_w] for i in range(n_tiles) for j in range(n_tiles)])
 
 
+def load_cifar10():
+    """
+    Load cifar10 to test autoencoder
+    """
+    with open('data/cifar-10/data_batch_1', 'rb') as fo:
+        X_dict = pickle.load(fo, encoding='bytes')
+    X_train = X_dict[b'data']           # shape: (10000, 3072) = (10000 images, 32x32 r + 32x32 b + 32x32 g)
+    y_train = X_dict[b'labels']         # list of length 10000
+
+    print("X_train shape: ", end="")
+    print(X_train.shape)
+    print("Length of y_train: ", end="")
+    print(len(y_train))
+    return None
 
 
-def load_data(dataset, usecuda):
+
+def load_data(dataset, usecuda=False):
     """
     Loads data, returns training, validation, and testing data loader
     """
 
-    # How to dynamically call functions in a pythonic way?
-    # Not creating functions dynamically...
-    # Callbacks - a way to stick stuff into the training loop when you don't have access (ex. pytorch lightning, keras)
-    # If you have multiple training instances, you want callbacks to know when everything is finished
-    # Make this an if statement
-    try:
-        data_func = globals()["load_" + dataset]
-    except KeyError:
-        print("Invalid data name")
-        exit()
+    if dataset == 'puzzle':
+        data = load_puzzle()
+    elif dataset == 'cifar10':
+        data = load_cifar10()
