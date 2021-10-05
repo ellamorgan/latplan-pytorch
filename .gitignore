@@ -1,5 +1,5 @@
 wandb/
 **/__pycache__/
-data/__pycache__/
+**/data/__pycache__/
 .vscode/
 env/
