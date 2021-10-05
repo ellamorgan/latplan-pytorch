@@ -1,5 +1,4 @@
 import torch
-import wandb
 import torch.nn as nn
 
 from data.load_data import load_args, load_data
@@ -26,6 +25,7 @@ if __name__=='__main__':
 
     # Run wandb (logs training)
     if not args.no_wandb:
+        import wandb
         run = wandb.init(project='latplan-pytorch',
             group="%s" % (args.data),
             config={'data':args.data},

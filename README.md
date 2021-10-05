@@ -1,5 +1,5 @@
 # Latplan-pytorch
-Requires pytorch==1.9.1 (current version), wandb
+Requires pytorch==1.9.1 (current version), wandb (optional - use flag -no_wandb to run without)
 
 To run:
 ```
