@@ -36,7 +36,7 @@ if __name__=='__main__':
 
     # Create model, use Adam optimizer, and use MSE loss
     model = Autoencoder().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)        # Change to rectified Adam
     criterion = nn.MSELoss()
 
     # Training loop
@@ -47,7 +47,9 @@ if __name__=='__main__':
 
             data = data.to(device)
             optimizer.zero_grad()
-            output = model(data)
+            output = model(data)                        # Has shape (batch=20, f=100)
+
+            # Loss functions go here
             train_loss = criterion(output, data)
             train_loss.backward()
             optimizer.step()
