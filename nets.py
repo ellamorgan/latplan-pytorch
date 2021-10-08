@@ -1,12 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from activations import GumbelSoftmax, BinaryConcrete
 
 
 
 # Combines Encoder and Decoder networks
 # Do the linear layers have bias?
-# Need to check exsct specifications (ex. initialization is wrong)
+# Need to check exact specifications (ex. initialization is wrong)
 class Autoencoder(nn.Module):
 
     def __init__(self, w, k, c, f, batch):
@@ -23,6 +24,8 @@ class Autoencoder(nn.Module):
         self.enc_conv3 = nn.Conv2d(c, c, k, bias=False)
         self.enc_batch_norm4 = nn.BatchNorm2d(c)
         self.enc_linear = nn.Linear(c * self.final_im_shape * self.final_im_shape, f)           # Input size, output size
+
+        self.binary_concrete = BinaryConcrete()
 
         # Decoder
         self.dec_linear = nn.Linear(f, c * self.final_im_shape * self.final_im_shape)           # Input size, output size
@@ -60,7 +63,8 @@ class Autoencoder(nn.Module):
         # x: (batch, channels, wight, height)
         l = self.encode(x)
         # l: (batch, f)
-        x = self.decode(l)
+        z = self.binary_concrete(l)
+        x = self.decode(z)
         # x: (batch, channels, wight, height)
         return l, x
 
@@ -77,9 +81,7 @@ class Action(nn.Module):
 
         self.dropout = nn.Dropout(p=0.2)
         self.relu = nn.ReLU()
-    
-    def gumbel_softmax(self, x):
-        return x
+        self.gumbel_softmax = GumbelSoftmax()
 
     def forward(self, x):
         x = self.dropout(self.batch_norm1(self.relu(self.linear1(x, bias=False))))
