@@ -3,10 +3,10 @@ Requires pytorch==1.9.1 (current version), wandb (optional - use flag -no_wandb 
 
 To run:
 ```
-python3 main.py --data puzzle
+python3 main.py --dataset puzzle
 ```
 
-Options for data are:  
+Options for dataset are:  
 &emsp;puzzle  
 (More to be added later)
 
@@ -16,5 +16,5 @@ Flags:
 
 Example with flags:
 ```
-python3 main.py --data puzzle -no_wandb
+python3 main.py --dataset puzzle -no_wandb
 ```
