@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 
 from data.load_data import load_args, load_data
-from nets import Autoencoder
+from nets import Autoencoder, Action, Applicable, Regressable
+from loss import gs_loss, bc_loss
 
 """
 Args:
@@ -37,7 +38,7 @@ if __name__=='__main__':
     print("Using device", device)
 
     # Create model, use Adam optimizer, and use MSE loss
-    model = Autoencoder(w=60, k=5, c = 32, f=args['f'], batch=args['batch_size']).to(device)
+    AE = Autoencoder(w=60, k=5, c = 32, f=args['f'], batch=args['batch_size']).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
     criterion = nn.MSELoss()
 
@@ -50,10 +51,11 @@ if __name__=='__main__':
 
             data = data.to(device)
             optimizer.zero_grad()
-            pre_logits, pre_output = model(data[:, 0])                  # logits: (batch, f)
-            suc_logits, suc_output = model(data[:, 1])                  # output: (batch, 1, w, w)
+            pre_logits, pre_output = AE(data[:, 0])                  # logits: (batch, f)
+            suc_logits, suc_output = AE(data[:, 1])                  # output: (batch, 1, w, w)
 
             action_inp = torch.cat((pre_logits, suc_logits), axis=1)    # action_inp: (batch, 2 * f)
+            action_out = 
 
             # Loss functions go here
             loss = criterion(pre_output, data[:, 0]) + criterion(suc_output, data[:, 1])
@@ -73,15 +75,15 @@ if __name__=='__main__':
             for data in loaders['val']:
 
                 data = data.to(device)
-                pre_logits, pre_output = model(data[:, 0])
-                suc_logits, suc_output = model(data[:, 1])
+                pre_logits, pre_output = AE(data[:, 0])
+                suc_logits, suc_output = AE(data[:, 1])
                 loss = criterion(pre_output, data[:, 0]) + criterion(suc_output, data[:, 1])
                 val_loss += loss.item()
             
             val_loss /= len(loaders['val'])
             print("val loss = {:.6f}".format(val_loss))
         
-            model.train()
+            AE.train()
 
         # Log results in wandb
         if wandb is not None:

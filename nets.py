@@ -59,13 +59,10 @@ class Autoencoder(nn.Module):
         x = self.dec_conv3(x)
         return x
 
-    def forward(self, x):
-        # x: (batch, channels, wight, height)
-        l = self.encode(x)
-        # l: (batch, f)
+    def forward(self, x):               # x: (batch, channels, wight, height)
+        l = self.encode(x)              # l: (batch, f)
         z = self.binary_concrete(l)
-        x = self.decode(z)
-        # x: (batch, channels, wight, height)
+        x = self.decode(z)              # x: (batch, channels, wight, height)
         return l, x
 
 
@@ -90,19 +87,28 @@ class Action(nn.Module):
 
 
 
+class Applicable(nn.Module):
+    
+    def __init__(self, f, a=6000):
+        super().__init__()
+        self.linear = nn.Linear(f, a)
+
+    def forward(self, x):
+        return self.linear(x)
+
+
+
+class Regressable(nn.Module):
+    
+    def __init__(self, f, a=6000):
+        super().__init__()
+        self.linear = nn.Linear(f, a)
+
+    def forward(self, x):
+        return self.linear(x)
+
+
 # TODO
-# Loss functions, different KL-D losses for Binary Concrete and Gumbel Softmax
-# In the code these are found in the AbstractBinaryConcrete and AbstractGumbelSoftmax classes
-# The full KL-D loss also includes the reconstruction loss, in the code they use GaussianOutput from output.py
-
-
-# Gumbel Softmax
-# Applied to the action (formula, not network)
-
-# Binary Concrete
-# Turns logits into discrete (formula, not network)
-# For GS and BC they do some weird sampling stuff
-
 # Apply
 # This is a formula, logically computes the next state
 

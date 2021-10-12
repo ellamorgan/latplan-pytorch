@@ -70,8 +70,7 @@ def load_data(dataset, batch_size, train_split, val_split, usecuda, **kwargs):
     """
     Loads data, returns training, validation, and testing data loader
     """
-    if dataset == 'puzzle':
-        data = load_puzzle(**kwargs)
+    data = load_puzzle(**kwargs)
     
     train_ind = int(len(data) * train_split)
     val_ind = int(len(data) * (train_split + val_split))
