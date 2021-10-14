@@ -3,11 +3,11 @@ Requires pytorch==1.9.1 (current version), wandb (optional - use flag -no_wandb 
 
 To run:
 ```
-python3 main.py --dataset puzzle
+python3 main.py
 ```
 
 Options for dataset are:  
-&emsp;puzzle  
+&emsp;puzzle (default)  
 (More to be added later)
 
 Flags:  
