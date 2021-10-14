@@ -16,7 +16,7 @@ Flags:
 
 
 
-if __name__=='__main__':
+def train():
 
     args = load_args('configs.conf')
 
@@ -87,3 +87,18 @@ if __name__=='__main__':
 
     if wandb is not None:
         run.finish()
+    
+    return [train_loss], [val_loss]
+
+
+if __name__=='__main__':
+
+    all_train_loss, all_val_loss = [], []
+
+    for _ in range(10):
+        train_loss, val_loss = train()
+        all_train_loss += train_loss
+        all_val_loss += val_loss
+    
+    for i, (train_loss, val_loss) in enumerate(zip(all_train_loss, all_val_loss)):
+        print("Model %d finished with train loss %.5f and val loss %.5f" % (i, train_loss, val_loss))

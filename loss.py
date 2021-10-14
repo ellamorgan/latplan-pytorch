@@ -44,8 +44,8 @@ def total_loss(out, p, beta_z=1, beta_d=1):
     z0_prior = bc_loss(out['l_0'], p=p)
     z1_prior = bc_loss(out['l_1'], p=p)
 
-    z0_z3 = bc_loss(out['z_0'], logit_p=out['z_3'])
-    z1_z2 = bc_loss(out['z_1'], logit_p=out['z_2'])
+    l0_l3 = bc_loss(out['l_0'], logit_p=out['l_3'])
+    l1_l2 = bc_loss(out['l_1'], logit_p=out['l_2'])
 
     a_app = gs_loss(out['a_l'], out['app'])
     a_reg = gs_loss(out['a_l'], out['reg'])
@@ -59,9 +59,9 @@ def total_loss(out, p, beta_z=1, beta_d=1):
     x0_x3 = criterion(out['x_0'], out['x_aae_3'])
     x1_x2 = criterion(out['x_1'], out['x_aae_2'])
     
-    forward_loss1 = beta_z * z0_prior + x0_recon + a_app + beta_d * z1_z2 + x1_recon
+    forward_loss1 = beta_z * z0_prior + x0_recon + a_app + beta_d * l1_l2 + x1_recon
     forward_loss2 = beta_z * z0_prior + x0_recon + a_app + x1_x2
-    backward_loss1 = beta_z * z1_prior + x1_recon + a_reg + beta_d * z0_z3 + x0_recon
+    backward_loss1 = beta_z * z1_prior + x1_recon + a_reg + beta_d * l0_l3 + x0_recon
     backward_loss2 = beta_z * z1_prior + x1_recon + a_reg + x0_x3
 
     return (forward_loss1 + forward_loss2 + backward_loss1 + backward_loss2) / 4

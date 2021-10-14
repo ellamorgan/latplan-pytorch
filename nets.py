@@ -88,6 +88,7 @@ class Encoder(nn.Module):
         """
         Takes in an image, returns results before activation is applied
         """
+        x += (0.1**0.5) * torch.randn_like(x)                                                  # Add Gaussian Noise
         x = self.enc_batch_norm1(x)
         x = self.dropout2d(self.enc_batch_norm2(F.relu(self.enc_conv1(x))))
         x = self.dropout2d(self.enc_batch_norm3(F.relu(self.enc_conv2(x))))
