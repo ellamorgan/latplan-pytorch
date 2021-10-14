@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 
 from data.load_data import load_args, load_data
-from nets import Autoencoder, Action, Applicable, Regressable
-from loss import gs_loss, bc_loss
+from model import Model
+from loss import total_loss
 
 """
 Args:
@@ -37,10 +37,13 @@ if __name__=='__main__':
     device = torch.device("cuda") if usecuda else torch.device("cpu")
     print("Using device", device)
 
-    # Create model, use Adam optimizer, and use MSE loss
-    AE = Autoencoder(w=60, k=5, c = 32, f=args['f'], batch=args['batch_size']).to(device)
+    # This needs to be a tensor on the device
+    # Put this in args
+    p = torch.Tensor([0.1]).to(device)
+
+    # Create model, use Adam optimizer (the paper uses a different optimizer)
+    model = Model(img_width=60, kernel=5, channels=32, fluents=args['f'], batch=args['batch_size'], action_h1=1000, action=6000, device=device).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
-    criterion = nn.MSELoss()
 
     # Training loop
     for epoch in range(args['epochs']):
@@ -51,19 +54,13 @@ if __name__=='__main__':
 
             data = data.to(device)
             optimizer.zero_grad()
-            pre_logits, pre_output = AE(data[:, 0])                  # logits: (batch, f)
-            suc_logits, suc_output = AE(data[:, 1])                  # output: (batch, 1, w, w)
-
-            action_inp = torch.cat((pre_logits, suc_logits), axis=1)    # action_inp: (batch, 2 * f)
-            action_out = 
-
-            # Loss functions go here
-            loss = criterion(pre_output, data[:, 0]) + criterion(suc_output, data[:, 1])
+            out = model(data, epoch)
+            loss = total_loss(out, p)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
 
-        train_loss /= len(loaders['train'])
+        train_loss /= (len(loaders['train']) * args['batch_size'])
         print("epoch: {}, train loss = {:.6f}, ".format(epoch + 1, train_loss), end="")
 
         # Validation
@@ -75,15 +72,14 @@ if __name__=='__main__':
             for data in loaders['val']:
 
                 data = data.to(device)
-                pre_logits, pre_output = AE(data[:, 0])
-                suc_logits, suc_output = AE(data[:, 1])
-                loss = criterion(pre_output, data[:, 0]) + criterion(suc_output, data[:, 1])
+                out = model(data, epoch)
+                loss = total_loss(out, p)
                 val_loss += loss.item()
             
-            val_loss /= len(loaders['val'])
+            val_loss /= (len(loaders['val']) * args['batch_size'])
             print("val loss = {:.6f}".format(val_loss))
         
-            AE.train()
+            model.train()
 
         # Log results in wandb
         if wandb is not None:

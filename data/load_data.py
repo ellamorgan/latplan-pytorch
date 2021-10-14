@@ -42,14 +42,15 @@ def load_args(config_path):
 
 
 
-def load_puzzle(n_data = 1000, n_tiles = 4, image_path='data/images/spider.png', w = 60, **kwargs):
+def load_puzzle(n_tiles = 4, image_path='data/images/spider.png', w = 60, **kwargs):
     """
     Loads the puzzle domain
     Returns data normalized to range [0, 1] in format (n_data * 2, 1, w, w)
     """
     with np.load('data/puzzle-' + str(n_tiles) + '.npz') as data:
-        permutations = np.concatenate((data['pres'][:n_data], data['sucs'][:n_data])).argsort()
+        permutations = np.concatenate((data['pres'], data['sucs'])).argsort()
     
+    n_data = int(len(permutations) / 2)
     image = Image.open(image_path).resize((w, w)).convert('L')
     puzzle = np.asarray(image)
     t_w = w // n_tiles
@@ -58,7 +59,7 @@ def load_puzzle(n_data = 1000, n_tiles = 4, image_path='data/images/spider.png',
     r1 = np.reshape(permuted_images, (n_data * 2, n_tiles, n_tiles, t_w, t_w))
     t1 = np.transpose(r1, (0, 1, 3, 2, 4))
     r2 = np.reshape(t1, (n_data * 2, 1, w, w))
-    data = np.stack((r2[:n_data], r2[n_data:]), axis=1)
+    data = np.stack((r2, r2), axis=1)
 
     print("Puzzle data loaded in with shape", data.shape)
 
