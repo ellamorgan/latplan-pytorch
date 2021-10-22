@@ -12,7 +12,7 @@ Full model
 
 class Model(nn.Module):
 
-    def __init__(self, img_width, kernel, channels, fluents, batch, action_h1, action, device):
+    def __init__(self, img_width, kernel, channels, fluents, batch, action_h1, action, device, **kwargs):
         super().__init__()
 
         self.w = img_width
@@ -37,8 +37,8 @@ class Model(nn.Module):
         self.binary_concrete = BinaryConcrete(self.device)
     
     def forward(self, x, epoch):
-        # x is a pair of images. x[:, 0] is pre, x[:, 1] is suc
 
+        # x is a pair of images. x[:, 0] is pre, x[:, 1] is suc
         out = {'x_0': x[:, 0], 'x_1': x[:, 1]}
 
         out['l_0'] = self.encoder(out['x_0'])

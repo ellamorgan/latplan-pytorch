@@ -4,6 +4,7 @@ import torch.nn as nn
 from data.load_data import load_args, load_data
 from model import Model
 from loss import total_loss
+from output import save_as_gif
 
 """
 Args:
@@ -42,7 +43,7 @@ def train():
     p = torch.Tensor([0.1]).to(device)
 
     # Create model, use Adam optimizer (the paper uses a different optimizer)
-    model = Model(img_width=60, kernel=5, channels=32, fluents=args['f'], batch=args['batch_size'], action_h1=1000, action=6000, device=device).to(device)
+    model = Model(**args, device=device).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
 
     # Training loop
@@ -60,7 +61,7 @@ def train():
             optimizer.step()
             train_loss += loss.item()
 
-        train_loss /= (len(loaders['train']) * args['batch_size'])
+        train_loss /= (len(loaders['train']) * args['batch'])
         print("epoch: {}, train loss = {:.6f}, ".format(epoch + 1, train_loss), end="")
 
         # Validation
@@ -76,10 +77,16 @@ def train():
                 loss = total_loss(out, p)
                 val_loss += loss.item()
             
-            val_loss /= (len(loaders['val']) * args['batch_size'])
+            val_loss /= (len(loaders['val']) * args['batch'])
             print("val loss = {:.6f}".format(val_loss))
         
             model.train()
+        
+        if epoch % args['save_every'] == 0:
+            save_data = out['x_0'].to('cpu').numpy()
+            save_as_gif(save_data, 'saved_gifs/epoch' + str(epoch) + 'in.gif')
+            save_data = out['x_dec_0'].to('cpu').numpy()
+            save_as_gif(save_data, 'saved_gifs/epoch' + str(epoch) + 'out.gif')
 
         # Log results in wandb
         if wandb is not None:

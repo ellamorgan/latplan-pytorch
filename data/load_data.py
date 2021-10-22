@@ -42,13 +42,13 @@ def load_args(config_path):
 
 
 
-def load_puzzle(n_tiles = 4, image_path='data/images/spider.png', w = 60, **kwargs):
+def load_puzzle(w, n_data, n_tiles = 4, image_path='data/images/spider.png'):
     """
     Loads the puzzle domain
     Returns data normalized to range [0, 1] in format (n_data * 2, 1, w, w)
     """
     with np.load('data/puzzle-' + str(n_tiles) + '.npz') as data:
-        permutations = np.concatenate((data['pres'], data['sucs'])).argsort()
+        permutations = np.concatenate((data['pres'], data['sucs'])).argsort()[:n_data]
     
     n_data = int(len(permutations) / 2)
     image = Image.open(image_path).resize((w, w)).convert('L')
@@ -67,11 +67,11 @@ def load_puzzle(n_tiles = 4, image_path='data/images/spider.png', w = 60, **kwar
 
 
 
-def load_data(dataset, batch_size, train_split, val_split, usecuda, **kwargs):
+def load_data(dataset, img_width, batch, train_split, val_split, n_data, usecuda, **kwargs):
     """
     Loads data, returns training, validation, and testing data loader
     """
-    data = load_puzzle(**kwargs)
+    data = load_puzzle(img_width, n_data)
     
     train_ind = int(len(data) * train_split)
     val_ind = int(len(data) * (train_split + val_split))
@@ -81,8 +81,8 @@ def load_data(dataset, batch_size, train_split, val_split, usecuda, **kwargs):
     test_data = data[val_ind:]
     print("Train / val / test split sizes:", len(train_data), "/", len(val_data), "/", len(test_data))
 
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, pin_memory=usecuda)
-    val_dataloader= DataLoader(val_data, batch_size=batch_size, shuffle=True, pin_memory=usecuda)
-    test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=True, pin_memory=usecuda)
+    train_dataloader = DataLoader(train_data, batch_size=batch, shuffle=True, pin_memory=usecuda)
+    val_dataloader= DataLoader(val_data, batch_size=batch, shuffle=True, pin_memory=usecuda)
+    test_dataloader = DataLoader(test_data, batch_size=batch, shuffle=True, pin_memory=usecuda)
 
     return {'train':train_dataloader, 'val':val_dataloader, 'test':test_dataloader}

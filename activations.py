@@ -8,7 +8,7 @@ GumbelSoftmax and BinaryConcrete implementations inspired by https://github.com/
 """
 
 
-def get_tau(epoch, t_max=5, t_min=0.5, total_epochs=200):
+def get_tau(epoch, t_max=5, t_min=0.5, total_epochs=1000):
     return t_max * (t_min / t_max) ** (min(epoch, total_epochs) / total_epochs)
 
 
