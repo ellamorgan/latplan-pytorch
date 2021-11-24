@@ -24,10 +24,16 @@ class Encoder(nn.Module):
     
     def forward(self, x):
         x += (0.1**0.5) * torch.randn_like(x)                                                  # Add Gaussian Noise
-        x = self.enc_batch_norm1(x)
+        #x = self.enc_batch_norm1(x)
+        x = F.relu(self.enc_conv1(x))
+        x = F.relu(self.enc_conv2(x))
+        x = self.enc_conv3(x)
+        '''
         x = self.dropout2d(self.enc_batch_norm2(F.relu(self.enc_conv1(x))))
         x = self.dropout2d(self.enc_batch_norm3(F.relu(self.enc_conv2(x))))
         x = self.dropout2d(self.enc_batch_norm4(self.enc_conv3(x)))
+        '''
+
         x = torch.flatten(x, start_dim=1)                                                       # (batch, final_im_shape)
         x = self.enc_linear(x)                                                                  # (batch, f)
         return x
@@ -56,8 +62,14 @@ class Decoder(nn.Module):
     def forward(self, x):
         x = self.dec_batch_norm1(self.dec_linear(x))                                            # dropout_z false, no 1d dropout
         x = torch.reshape(x, (-1, self.c, self.final_im_shape, self.final_im_shape))
+        x = F.relu(self.dec_conv1(x))
+        x = F.relu(self.dec_conv2(x))
+
+        '''
         x = self.dropout2d(self.dec_batch_norm2(F.relu(self.dec_conv1(x))))
         x = self.dropout2d(self.dec_batch_norm3(F.relu(self.dec_conv2(x))))
+        '''
+
         x = self.dec_conv3(x)
         return x
 
@@ -75,7 +87,10 @@ class Action(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x):
+        x = self.relu(self.linear1(x))
+        '''
         x = self.dropout(self.batch_norm1(self.relu(self.linear1(x))))
+        '''
         x = self.linear2(x)
         return x
 
