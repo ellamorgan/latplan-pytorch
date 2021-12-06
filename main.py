@@ -1,15 +1,14 @@
 import torch
 import torch.nn as nn
+import numpy as np
+import itertools
 
 from data.load_data import load_args, load_data
 from model import Model
 from loss import total_loss
-from output import save_as_gif
+from output import save_as_gif, save_image, save_loss_plots
 
 """
-Args:
---dataset       (options: puzzle)
-
 Flags:
 -no_cuda        (train on CPU)
 -no_wandb       (don't log metrics on wandb)
@@ -19,6 +18,20 @@ Flags:
 
 def train():
 
+    # Store loss terms for graphing
+    losses = {'z0_prior' : [],
+              'z1_prior' : [],
+              'l0_l3' : [],
+              'l1_l2' : [],
+              'a_app' : [],
+              'a_reg' : [],
+              'x0_recon' : [],
+              'x1_recon' : [],
+              'x0_x3' : [],
+              'x1_x2' : []}
+
+
+    # Load args from configs.conf
     args = load_args('configs.conf')
 
     # If usecuda, operations will be performed on GPU
@@ -38,13 +51,12 @@ def train():
     device = torch.device("cuda") if usecuda else torch.device("cpu")
     print("Using device", device)
 
-    # This needs to be a tensor on the device
-    # Put this in args
-    p = torch.Tensor([0.1]).to(device)
+    # Need to put this tensor on the device, done here instead of passing device
+    p = torch.Tensor([args['p']]).to(device)
 
-    # Create model, use Adam optimizer (the paper uses a different optimizer)
+    # Create model
     model = Model(**args, device=device).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
+    optimizer = torch.optim.RAdam(model.parameters(), lr=1e-3, weight_decay=1e-5)
 
     # Training loop
     for epoch in range(args['epochs']):
@@ -56,7 +68,7 @@ def train():
             data = data.to(device)
             optimizer.zero_grad()
             out = model(data, epoch)
-            loss = total_loss(out, p)
+            loss, losses = total_loss(out, p, args['beta_z'], args['beta_d'], losses)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
@@ -64,7 +76,7 @@ def train():
         train_loss /= (len(loaders['train']) * args['batch'])
         print("epoch: {}, train loss = {:.6f}, ".format(epoch + 1, train_loss), end="")
 
-        # Validation
+        # Validation - not used to impact model training, essentially working as a testing dataset
         with torch.no_grad():
 
             model.eval()
@@ -74,7 +86,7 @@ def train():
 
                 data = data.to(device)
                 out = model(data, epoch)
-                loss = total_loss(out, p)
+                loss, _ = total_loss(out, p, args['beta_z'], args['beta_d'])
                 val_loss += loss.item()
             
             val_loss /= (len(loaders['val']) * args['batch'])
@@ -82,11 +94,20 @@ def train():
         
             model.train()
         
-        if epoch % args['save_every'] == 0:
-            save_data = out['x_0'].to('cpu').numpy()
-            save_as_gif(save_data, 'saved_gifs/epoch' + str(epoch) + 'in.gif')
-            save_data = out['x_dec_0'].to('cpu').numpy()
-            save_as_gif(save_data, 'saved_gifs/epoch' + str(epoch) + 'out.gif')
+        # Save results as gif
+        if (epoch + 1) % args['save_every'] == 0:
+            
+            pres_dec = out['x_dec_0'].to('cpu').numpy()
+            sucs_dec = out['x_dec_1'].to('cpu').numpy()
+            pres_aae = out['x_aae_3'].to('cpu').numpy()
+            sucs_aae = out['x_aae_2'].to('cpu').numpy()
+
+            dec_joint = np.concatenate((pres_dec, sucs_dec), axis=3)
+            aae_joint = np.concatenate((pres_aae, sucs_aae), axis=3)
+            joint = np.concatenate((dec_joint, aae_joint), axis=2)
+            
+            save_as_gif(joint, 'saved_gifs/' + str(args['beta_d']) + '_' + str(args['beta_z']) + '_' + str(args['fluents']) + '_' + str(epoch + 1) + '.gif')
+
 
         # Log results in wandb
         if wandb is not None:
@@ -95,17 +116,12 @@ def train():
     if wandb is not None:
         run.finish()
     
-    return [train_loss], [val_loss]
+    return train_loss, val_loss, losses, args
+
 
 
 if __name__=='__main__':
 
-    all_train_loss, all_val_loss = [], []
-
-    for _ in range(10):
-        train_loss, val_loss = train()
-        all_train_loss += train_loss
-        all_val_loss += val_loss
-    
-    for i, (train_loss, val_loss) in enumerate(zip(all_train_loss, all_val_loss)):
-        print("Model %d finished with train loss %.5f and val loss %.5f" % (i, train_loss, val_loss))
+    train_loss, val_loss, losses, args = train()
+    save_loss_plots(losses, args['beta_d'], args['beta_z'], args['fluents'])
+    print("Beta_d = %d, beta_z = %d, fluents = %d finished with train loss %.5f and val loss %.5f" % (args['beta_d'], args['beta_z'], args['fluents'], train_loss, val_loss))

@@ -6,7 +6,7 @@ from nets import Encoder, Decoder, Action, Apply, Regress, Applicable, Regressab
 from activations import GumbelSoftmax, BinaryConcrete
 
 """
-Full model
+Full model, follows flow provided in section 3.1 Model descriptions
 """
 
 
@@ -35,6 +35,7 @@ class Model(nn.Module):
 
         self.gumbel_softmax = GumbelSoftmax(self.device)
         self.binary_concrete = BinaryConcrete(self.device)
+    
     
     def forward(self, x, epoch):
 

@@ -8,12 +8,13 @@ GumbelSoftmax and BinaryConcrete implementations inspired by https://github.com/
 """
 
 
+# Calculates tau - formula provided in section 3.1.6 Gumbel Softmax
 def get_tau(epoch, t_max=5, t_min=0.5, total_epochs=1000):
     return t_max * (t_min / t_max) ** (min(epoch, total_epochs) / total_epochs)
 
 
 
-# GumbelSoftmax is for the actions
+# GumbelSoftmax is for the actions - discretizes as tau approaches 0
 class GumbelSoftmax(nn.Module):
 
     def __init__(self, device):
@@ -31,7 +32,7 @@ class GumbelSoftmax(nn.Module):
 
 
 
-# BinaryConcrete is for the state
+# BinaryConcrete is for the state - discretizes as tau approaches 0
 class BinaryConcrete(nn.Module):
 
     def __init__(self, device):

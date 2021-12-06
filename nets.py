@@ -3,7 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from activations import GumbelSoftmax, BinaryConcrete
 
-
+'''
+Individual subnetworks, described in section 3.1 Model descriptions
+'''
 
 class Encoder(nn.Module):
     def __init__(self, w, k, c, f):
@@ -23,16 +25,11 @@ class Encoder(nn.Module):
         self.dropout2d = nn.Dropout2d(p=0.2)                                                    # Dropout probability
     
     def forward(self, x):
-        x += (0.1**0.5) * torch.randn_like(x)                                                  # Add Gaussian Noise
-        #x = self.enc_batch_norm1(x)
-        x = F.relu(self.enc_conv1(x))
-        x = F.relu(self.enc_conv2(x))
-        x = self.enc_conv3(x)
-        '''
+        x += (0.01**0.5) * torch.randn_like(x)                                                  # Add Gaussian Noise
+        x = self.enc_batch_norm1(x)
         x = self.dropout2d(self.enc_batch_norm2(F.relu(self.enc_conv1(x))))
         x = self.dropout2d(self.enc_batch_norm3(F.relu(self.enc_conv2(x))))
         x = self.dropout2d(self.enc_batch_norm4(self.enc_conv3(x)))
-        '''
 
         x = torch.flatten(x, start_dim=1)                                                       # (batch, final_im_shape)
         x = self.enc_linear(x)                                                                  # (batch, f)
@@ -62,13 +59,8 @@ class Decoder(nn.Module):
     def forward(self, x):
         x = self.dec_batch_norm1(self.dec_linear(x))                                            # dropout_z false, no 1d dropout
         x = torch.reshape(x, (-1, self.c, self.final_im_shape, self.final_im_shape))
-        x = F.relu(self.dec_conv1(x))
-        x = F.relu(self.dec_conv2(x))
-
-        '''
         x = self.dropout2d(self.dec_batch_norm2(F.relu(self.dec_conv1(x))))
         x = self.dropout2d(self.dec_batch_norm3(F.relu(self.dec_conv2(x))))
-        '''
 
         x = self.dec_conv3(x)
         return x
@@ -76,7 +68,7 @@ class Decoder(nn.Module):
 
 class Action(nn.Module):
 
-    def __init__(self, f, h1=1000, a=6000):
+    def __init__(self, f, h1, a):
         super().__init__()
         
         self.linear1 = nn.Linear(f * 2, h1, bias=False)          # Input size, output size
@@ -87,10 +79,8 @@ class Action(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        x = self.relu(self.linear1(x))
-        '''
         x = self.dropout(self.batch_norm1(self.relu(self.linear1(x))))
-        '''
+
         x = self.linear2(x)
         return x
 
@@ -130,6 +120,7 @@ class Regress(nn.Module):
         return regress
         
 
+# Applicable and Regressable used as regularizer for the action through KL divergence
 
 class Applicable(nn.Module):
     

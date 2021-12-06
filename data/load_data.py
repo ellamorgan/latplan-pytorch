@@ -6,14 +6,15 @@ from PIL import Image
 import torch
 from torch.utils.data import DataLoader
 
-
+'''
+Data loading and config loading
+'''
 
 def load_args(config_path):
     """
     Parses command line arguments
     Returns a dictionary with command line and config file configs
     Gives priority to command line, can overwrite config file configs
-    TODO: split into different config dicts based on data/train/model/etc?
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str)
@@ -42,24 +43,34 @@ def load_args(config_path):
 
 
 
-def load_puzzle(w, n_data, n_tiles = 4, image_path='data/images/spider.png'):
+def load_puzzle(w, n_data, n_tiles = 3, image_path='data/images/cat.jpg'):
     """
     Loads the puzzle domain
-    Returns data normalized to range [0, 1] in format (n_data * 2, 1, w, w)
+    Returns data normalized to range [-1, 1] in format (n_data * 2, 1, w, w)
     """
     with np.load('data/puzzle-' + str(n_tiles) + '.npz') as data:
+        pres = data['pres'].argsort()[:n_data]
+        sucs = data['sucs'].argsort()[:n_data]
+        
         permutations = np.concatenate((data['pres'], data['sucs'])).argsort()[:n_data]
     
-    n_data = int(len(permutations) / 2)
+    n_data = len(pres)
     image = Image.open(image_path).resize((w, w)).convert('L')
     puzzle = np.asarray(image)
     t_w = w // n_tiles
     tiled_image = np.array([puzzle[i * t_w : (i + 1) * t_w, j * t_w : (j + 1) * t_w] for i in range(n_tiles) for j in range(n_tiles)])
-    permuted_images = tiled_image[permutations, :, :] / 255
-    r1 = np.reshape(permuted_images, (n_data * 2, n_tiles, n_tiles, t_w, t_w))
-    t1 = np.transpose(r1, (0, 1, 3, 2, 4))
-    r2 = np.reshape(t1, (n_data * 2, 1, w, w))
-    data = np.stack((r2, r2), axis=1)
+
+    def process(permutations):
+        d = (tiled_image[permutations, :, :] / 127.5) - 1
+        r1 = np.reshape(d, (-1, n_tiles, n_tiles, t_w, t_w))
+        t1 = np.transpose(r1, (0, 1, 3, 2, 4))
+        r2 = np.reshape(t1, (-1, 1, t_w * n_tiles, t_w * n_tiles))
+        return r2
+
+    pres_images = process(pres)
+    sucs_images = process(sucs)
+
+    data = np.stack((pres_images, sucs_images), axis=1)
 
     print("Puzzle data loaded in with shape", data.shape)
 
@@ -67,22 +78,21 @@ def load_puzzle(w, n_data, n_tiles = 4, image_path='data/images/spider.png'):
 
 
 
-def load_data(dataset, img_width, batch, train_split, val_split, n_data, usecuda, **kwargs):
+def load_data(dataset, img_width, batch, train_split, n_data, usecuda, **kwargs):
     """
-    Loads data, returns training, validation, and testing data loader
+    Loads data, returns training and validation data loader
+    Temporarily remove test data - use more for validation as we don't really care about final loss results
     """
     data = load_puzzle(img_width, n_data)
-    
+        
     train_ind = int(len(data) * train_split)
-    val_ind = int(len(data) * (train_split + val_split))
 
+    # Limitation: removed testing data as we didn't use the validation data to alter the training
     train_data = data[:train_ind]
-    val_data = data[train_ind:val_ind]
-    test_data = data[val_ind:]
-    print("Train / val / test split sizes:", len(train_data), "/", len(val_data), "/", len(test_data))
+    val_data = data[train_ind:]
+    print("Train / val split sizes:", len(train_data), "/", len(val_data))
 
     train_dataloader = DataLoader(train_data, batch_size=batch, shuffle=True, pin_memory=usecuda)
     val_dataloader= DataLoader(val_data, batch_size=batch, shuffle=True, pin_memory=usecuda)
-    test_dataloader = DataLoader(test_data, batch_size=batch, shuffle=True, pin_memory=usecuda)
 
-    return {'train':train_dataloader, 'val':val_dataloader, 'test':test_dataloader}
+    return {'train':train_dataloader, 'val':val_dataloader}

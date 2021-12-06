@@ -2,14 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+'''
+All loss functions found here
+'''
 
-
-# logit_p and logit_q should be the outputs of the action network and applicable/regressable before activations
-def gs_loss(logit_q, logit_p, eps=1e-20):       # logit_p, logit_q: (batch, f)
-    """
-    logit_q: output of action network before activation
-    logit_p: output of applicable/regressable before activation
-    """
+# Gumbel Softmax loss - formula provided in section 3.1.6 Gumbel Softmax
+def gs_loss(logit_q, logit_p, eps=1e-20):
     q = F.softmax(logit_q, dim=-1)
     q = q / torch.sum(q, dim=-1, keepdim=True)
     p = F.softmax(logit_p, dim=-1)
@@ -21,7 +19,8 @@ def gs_loss(logit_q, logit_p, eps=1e-20):       # logit_p, logit_q: (batch, f)
     return loss_sum
 
 
-
+# Binary Concrete loss - formula provided in section 3.1.7 Binary Concrete
+# logit_p for logits (network outputs before activation), p is for the Bernoulli(p) prior
 def bc_loss(logit_q, logit_p=None, p=None, eps=1e-20):
     if logit_p is None and p is None:
         raise ValueError("Both logit_p and p cannot be None")
@@ -37,8 +36,8 @@ def bc_loss(logit_q, logit_p=None, p=None, eps=1e-20):
     return loss_sum
 
 
-
-def total_loss(out, p, beta_z=1, beta_d=1):
+# Follows equations given in section 3.1.8 Loss Functions
+def total_loss(out, p, beta_z, beta_d, losses=None):
 
     # KL losses
     z0_prior = bc_loss(out['l_0'], p=p)
@@ -58,10 +57,27 @@ def total_loss(out, p, beta_z=1, beta_d=1):
 
     x0_x3 = criterion(out['x_0'], out['x_aae_3'])
     x1_x2 = criterion(out['x_1'], out['x_aae_2'])
+
+    # Store losses for future plotting
+    if losses is not None:
+        losses['z0_prior'].append(z0_prior.detach().cpu().numpy())
+        losses['z1_prior'].append(z1_prior.detach().cpu().numpy())
+        losses['l0_l3'].append(l0_l3.detach().cpu().numpy())
+        losses['l1_l2'].append(l1_l2.detach().cpu().numpy())
+        losses['a_app'].append(a_app.detach().cpu().numpy())
+        losses['a_reg'].append(a_reg.detach().cpu().numpy())
+        losses['x0_recon'].append(x0_recon.detach().cpu().numpy())
+        losses['x1_recon'].append(x1_recon.detach().cpu().numpy())
+        losses['x0_x3'].append(x0_x3.detach().cpu().numpy())
+        losses['x1_x2'].append(x1_x2.detach().cpu().numpy())
     
+    # Follows formulas provided in paper
     forward_loss1 = beta_z * z0_prior + x0_recon + a_app + beta_d * l1_l2 + x1_recon
     forward_loss2 = beta_z * z0_prior + x0_recon + a_app + x1_x2
     backward_loss1 = beta_z * z1_prior + x1_recon + a_reg + beta_d * l0_l3 + x0_recon
     backward_loss2 = beta_z * z1_prior + x1_recon + a_reg + x0_x3
+    total_loss = (forward_loss1 + forward_loss2 + backward_loss1 + backward_loss2) / 4
 
-    return (forward_loss1 + forward_loss2 + backward_loss1 + backward_loss2) / 4
+    recon_loss = (x0_recon + x1_recon + x0_x3 + x1_x2) / 4
+
+    return total_loss, losses

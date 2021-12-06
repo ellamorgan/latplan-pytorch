@@ -1,14 +1,12 @@
 # Latplan-pytorch
-Requires pytorch==1.9.1 (current version), wandb (optional - use flag -no_wandb to run without)
+Requires pytorch==1.9.1 (current version), wandb (optional - use flag -no_wandb to run without), matplotlib
 
 To run:
 ```
 python3 main.py
 ```
 
-Options for dataset are:  
-&emsp;puzzle (default)  
-(More to be added later)
+Hyperparamters can be changed in configs.conf
 
 Flags:  
 &emsp;-no_cuda (train on CPU - will do this automatically if CUDA not available)  
@@ -16,5 +14,5 @@ Flags:
 
 Example with flags:
 ```
-python3 main.py --dataset puzzle -no_wandb
+python3 main.py -no_wandb
 ```
