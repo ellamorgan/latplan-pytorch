@@ -1,5 +1,8 @@
-from PIL import Image
+import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+from PIL import Image
+
 
 def save_as_gif(result, filepath):
 
@@ -15,6 +18,39 @@ def save_image(result, filepath):
 
     img = Image.fromarray((result[0] + 1) * 127.5).convert('RGB')
     img.save(filepath)
+
+
+def save_latents_as_gif(args, out, epoch):
+
+    # Save results of last batch of validation data as gif
+    if (epoch + 1) % args['save_every'] == 0:
+        
+        pres_dec = out['x_dec_0'].to('cpu').numpy()
+        sucs_dec = out['x_dec_1'].to('cpu').numpy()
+        pres_aae = out['x_aae_3'].to('cpu').numpy()
+        sucs_aae = out['x_aae_2'].to('cpu').numpy()
+
+        dec_joint = np.concatenate((pres_dec, sucs_dec), axis=3)
+        aae_joint = np.concatenate((pres_aae, sucs_aae), axis=3)
+        joint = np.concatenate((dec_joint, aae_joint), axis=2)
+        
+        save_as_gif(joint, 'saved_gifs/' + str(args['beta_d']) + '_' + str(args['beta_z']) + '_' + str(args['fluents']) + '_' + str(epoch + 1) + '.gif')
+
+
+def save_heatmap(heatmap, name):
+    '''
+    Give an (n, n) matrix and a name, saves as a heatmap
+    '''
+    fig, ax = plt.subplots(figsize=(12,7))
+    plt.title('Variable densities', fontsize=18)
+    ax.title.set_position([0.5, 1.05])
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.axis('off')
+
+    sns.heatmap(heatmap, ax=ax, square=True, center=0, vmin=-1, vmax=1)
+    plt.savefig(name)
+    plt.close(fig)
 
 
 def save_loss_plots(losses, beta_d, beta_z, fluents):

@@ -6,7 +6,8 @@ import itertools
 from data.load_data import load_args, load_data
 from model import Model
 from loss import total_loss
-from output import save_as_gif, save_image, save_loss_plots
+from output import save_latents_as_gif, save_loss_plots
+from interpretability import neuron_attribution, save_latent, generate_heatmap
 
 """
 Flags:
@@ -15,28 +16,7 @@ Flags:
 """
 
 
-
-def train():
-
-    # Store loss terms for graphing
-    losses = {'z0_prior' : [],
-              'z1_prior' : [],
-              'l0_l3' : [],
-              'l1_l2' : [],
-              'a_app' : [],
-              'a_reg' : [],
-              'x0_recon' : [],
-              'x1_recon' : [],
-              'x0_x3' : [],
-              'x1_x2' : []}
-
-
-    # Load args from configs.conf
-    args = load_args('configs.conf')
-
-    # If usecuda, operations will be performed on GPU
-    usecuda = torch.cuda.is_available() and not args['no_cuda']
-    loaders = load_data(**args, usecuda=usecuda)
+def train(args, model, device, loaders, losses):
 
     # Run wandb (logs training)
     if not args['no_wandb']:
@@ -47,16 +27,11 @@ def train():
             reinit=True)
     else:
         wandb = None
-    
-    device = torch.device("cuda") if usecuda else torch.device("cpu")
-    print("Using device", device)
 
     # Need to put this tensor on the device, done here instead of passing device
     p = torch.Tensor([args['p']]).to(device)
-
-    # Create model
-    model = Model(**args, device=device).to(device)
-    optimizer = torch.optim.RAdam(model.parameters(), lr=1e-3, weight_decay=1e-5)
+    
+    optimizer = torch.optim.RAdam(model.parameters(), lr=args['lr'], weight_decay=args['weight_decay'])
 
     # Training loop
     for epoch in range(args['epochs']):
@@ -94,20 +69,8 @@ def train():
         
             model.train()
         
-        # Save results as gif
-        if (epoch + 1) % args['save_every'] == 0:
-            
-            pres_dec = out['x_dec_0'].to('cpu').numpy()
-            sucs_dec = out['x_dec_1'].to('cpu').numpy()
-            pres_aae = out['x_aae_3'].to('cpu').numpy()
-            sucs_aae = out['x_aae_2'].to('cpu').numpy()
-
-            dec_joint = np.concatenate((pres_dec, sucs_dec), axis=3)
-            aae_joint = np.concatenate((pres_aae, sucs_aae), axis=3)
-            joint = np.concatenate((dec_joint, aae_joint), axis=2)
-            
-            save_as_gif(joint, 'saved_gifs/' + str(args['beta_d']) + '_' + str(args['beta_z']) + '_' + str(args['fluents']) + '_' + str(epoch + 1) + '.gif')
-
+        if args['save_latent_gif']:
+            save_latents_as_gif(args, out, epoch)
 
         # Log results in wandb
         if wandb is not None:
@@ -116,12 +79,73 @@ def train():
     if wandb is not None:
         run.finish()
     
+    torch.save(model, args['model_savename'])
+    
     return train_loss, val_loss, losses, args
+
+
+
+def test(args, model, device, loaders):
+
+    # Evaluate on testing dataset
+    with torch.no_grad():
+
+        model.eval()
+        test_loss = 0
+
+        p = torch.Tensor([args['p']]).to(device)
+
+        for data in loaders['test']:
+
+            data = data.to(device)
+            out = model(data, epoch=-1)
+            loss, _ = total_loss(out, p, args['beta_z'], args['beta_d'])
+            test_loss += loss.item()
+
+            if args['save_latents']:
+                save_latent(out['z_2'].to('cpu').numpy(), args['latent_filename'])
+
+    # Do interpretability stuff
+    neuron_attribution(data, model)
+
+    test_loss /= (len(loaders['test']) * args['batch'])
+    print("Test loss = {:.6f}".format(test_loss))
 
 
 
 if __name__=='__main__':
 
+    # Track loss terms for plotting
+    losses = {'z0_prior' : [],
+              'z1_prior' : [],
+              'l0_l3' : [],
+              'l1_l2' : [],
+              'a_app' : [],
+              'a_reg' : [],
+              'x0_recon' : [],
+              'x1_recon' : [],
+              'x0_x3' : [],
+              'x1_x2' : []}
+
+
+    # Load args from configs.conf
+    args = load_args('configs.conf')
+
+    # If usecuda, operations will be performed on GPU
+    usecuda = torch.cuda.is_available() and not args['no_cuda']
+    loaders = load_data(**args, usecuda=usecuda)
+
+    device = torch.device("cuda") if usecuda else torch.device("cpu")
+    print("Using device", device)
+
+    # Create model
+    if args['load_model'] is not None:
+        model = torch.load(args['load_model']).to(device)
+    else:
+        model = Model(**args, device=device).to(device)
+
     train_loss, val_loss, losses, args = train()
+
+
     save_loss_plots(losses, args['beta_d'], args['beta_z'], args['fluents'])
     print("Beta_d = %d, beta_z = %d, fluents = %d finished with train loss %.5f and val loss %.5f" % (args['beta_d'], args['beta_z'], args['fluents'], train_loss, val_loss))

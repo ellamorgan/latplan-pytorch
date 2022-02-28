@@ -18,6 +18,7 @@ def load_args(config_path):
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str)
+    parser.add_argument("--load_model", type=str)
 
     # Flags
     parser.add_argument("-no_cuda", action="store_true")
@@ -29,9 +30,19 @@ def load_args(config_path):
         config.read_file(f)
     configs = dict(config['latplan_configs'])
 
-    float_rg = "(([+-]?([0-9]*)?[.][0-9]+)|([0-9]+[e][-][0-9]+))"
-    f = lambda x : float(x) if re.match(float_rg, x) else int(x) if x.isnumeric() else x
-    configs = {k : f(v) for k, v in configs.items()}
+    def match(x):
+        float_rg = "(([+-]?([0-9]*)?[.][0-9]+)|([0-9]+[e][-][0-9]+))"
+        if re.match(float_rg):
+            return float(x)
+        if x.isnumeric():
+            return int(x)
+        if x == 'True' or x == 'true':
+            return True
+        if x == 'False' or x == 'false':
+            return False
+        return x
+
+    configs = {k : match(v) for k, v in configs.items()}
 
     for k, v in vars(args).items():
         if v is not None:
@@ -43,7 +54,7 @@ def load_args(config_path):
 
 
 
-def load_puzzle(w, n_data, n_tiles = 3, image_path='data/images/cat.jpg'):
+def load_puzzle(w, n_data, n_tiles=3, image_path='data/images/cat.jpg'):
     """
     Loads the puzzle domain
     Returns data normalized to range [-1, 1] in format (n_data * 2, 1, w, w)
@@ -51,8 +62,6 @@ def load_puzzle(w, n_data, n_tiles = 3, image_path='data/images/cat.jpg'):
     with np.load('data/puzzle-' + str(n_tiles) + '.npz') as data:
         pres = data['pres'].argsort()[:n_data]
         sucs = data['sucs'].argsort()[:n_data]
-        
-        permutations = np.concatenate((data['pres'], data['sucs'])).argsort()[:n_data]
     
     n_data = len(pres)
     image = Image.open(image_path).resize((w, w)).convert('L')
@@ -78,21 +87,22 @@ def load_puzzle(w, n_data, n_tiles = 3, image_path='data/images/cat.jpg'):
 
 
 
-def load_data(dataset, img_width, batch, train_split, n_data, usecuda, **kwargs):
+def load_data(dataset, img_width, batch, train_split, val_split, n_data, usecuda, **kwargs):
     """
-    Loads data, returns training and validation data loader
-    Temporarily remove test data - use more for validation as we don't really care about final loss results
+    Loads data, returns training, validation, and testing dataloader
     """
     data = load_puzzle(img_width, n_data)
         
     train_ind = int(len(data) * train_split)
+    val_ind = int(len(data) * (train_split + val_split))
 
-    # Limitation: removed testing data as we didn't use the validation data to alter the training
     train_data = data[:train_ind]
-    val_data = data[train_ind:]
-    print("Train / val split sizes:", len(train_data), "/", len(val_data))
+    val_data = data[train_ind:val_ind]
+    test_data = data[val_ind:]
+    print("Train / val / test split sizes:", len(train_data), "/", len(val_data), "/", len(test_data))
 
-    train_dataloader = DataLoader(train_data, batch_size=batch, shuffle=True, pin_memory=usecuda)
-    val_dataloader= DataLoader(val_data, batch_size=batch, shuffle=True, pin_memory=usecuda)
+    train_dataloader = DataLoader(train_data, batch_size=batch, shuffle=True, pin_memory=usecuda, drop_last=True)
+    val_dataloader= DataLoader(val_data, batch_size=batch, shuffle=True, pin_memory=usecuda, drop_last=True)
+    test_dataloader = DataLoader(test_data, batch_size=batch, shuffle=True, pin_memory=usecuda, drop_last=True)
 
-    return {'train':train_dataloader, 'val':val_dataloader}
+    return {'train':train_dataloader, 'val':val_dataloader, 'test':test_dataloader}

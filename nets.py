@@ -25,7 +25,7 @@ class Encoder(nn.Module):
         self.dropout2d = nn.Dropout2d(p=0.2)                                                    # Dropout probability
     
     def forward(self, x):
-        x += (0.01**0.5) * torch.randn_like(x)                                                  # Add Gaussian Noise
+        #x += (0.01**0.5) * torch.randn_like(x)                                                  # Add Gaussian Noise
         x = self.enc_batch_norm1(x)
         x = self.dropout2d(self.enc_batch_norm2(F.relu(self.enc_conv1(x))))
         x = self.dropout2d(self.enc_batch_norm3(F.relu(self.enc_conv2(x))))

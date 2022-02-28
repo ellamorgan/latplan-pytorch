@@ -12,7 +12,7 @@ Full model, follows flow provided in section 3.1 Model descriptions
 
 class Model(nn.Module):
 
-    def __init__(self, img_width, kernel, channels, fluents, batch, action_h1, action, device, **kwargs):
+    def __init__(self, img_width, kernel, channels, fluents, batch, action_h1, action, device, tau_max, tau_min, epochs, **kwargs):
         super().__init__()
 
         self.w = img_width
@@ -24,6 +24,9 @@ class Model(nn.Module):
         self.a = action
 
         self.device = device
+        self.tau_max = tau_max
+        self.tau_min = tau_min
+        self.epochs = epochs
 
         self.encoder = Encoder(self.w, self.k, self.c, self.f)
         self.decoder = Decoder(self.w, self.k, self.c, self.f, self.b)
@@ -33,11 +36,11 @@ class Model(nn.Module):
         self.applicable = Applicable(self.a, self.f)
         self.regressable = Regressable(self.a, self.f)
 
-        self.gumbel_softmax = GumbelSoftmax(self.device)
-        self.binary_concrete = BinaryConcrete(self.device)
+        self.gumbel_softmax = GumbelSoftmax(self.device, self.tau_max, self.tau_min, self.epochs)
+        self.binary_concrete = BinaryConcrete(self.device, self.tau_max, self.tau_min, self.epochs)
     
     
-    def forward(self, x, epoch):
+    def forward(self, x, epoch=-1):
 
         # x is a pair of images. x[:, 0] is pre, x[:, 1] is suc
         out = {'x_0': x[:, 0], 'x_1': x[:, 1]}
